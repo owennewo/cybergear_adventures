@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "gd32f30x.h"
 #include "gd32f30x_can.h"
-#include "gd32_it.h"
+// #include "gd32_it.h"
 
 #define LED_PIN PB2
 #define CAN0_USED
@@ -15,12 +15,36 @@
 #define CANX CAN1
 #endif
 
+bool useInterrupt = false;
+
+can_receive_message_struct receive_message;
+
+extern "C" void CAN0_RX0_IRQHandler(void);
+extern "C" void CAN1_RX0_IRQHandler(void);
+
 volatile ErrStatus test_flag;
 volatile ErrStatus test_flag_interrupt = ERROR;
 
 void nvic_config(void);
 void led_config(void);
 // void can_loopback_init(can_parameter_struct can_parameter, can_filter_parameter_struct can_filter);
+
+void CAN0_RX0_IRQHandler(void)
+{
+  can_message_receive(CAN0, CAN_FIFO0, &receive_message);
+  if ((0x1234 == receive_message.rx_efid) && (CAN_FF_EXTENDED == receive_message.rx_ff) && (2 == receive_message.rx_dlen))
+  {
+    test_flag_interrupt = SUCCESS;
+  }
+}
+void CAN1_RX0_IRQHandler(void)
+{
+  can_message_receive(CAN1, CAN_FIFO0, &receive_message);
+  if ((0x1234 == receive_message.rx_efid) && (CAN_FF_EXTENDED == receive_message.rx_ff) && (2 == receive_message.rx_dlen))
+  {
+    test_flag_interrupt = SUCCESS;
+  }
+}
 
 ErrStatus can_loopback_transmit(bool useInterrupt)
 {
@@ -35,20 +59,16 @@ ErrStatus can_loopback_transmit(bool useInterrupt)
 
   /* initialize transmit message */
   transmit_message.tx_sfid = 0;
-  transmit_message.tx_efid = 0x1234;
+  transmit_message.tx_efid = 0x000A; // 0x1234;
   transmit_message.tx_ff = CAN_FF_EXTENDED;
   transmit_message.tx_ft = CAN_FT_DATA;
   transmit_message.tx_dlen = 2;
   transmit_message.tx_data[0] = 0xDE;
   transmit_message.tx_data[1] = 0xCA;
   /* transmit a message */
-  Serial.println("transmit");
-  delay(10);
   can_message_transmit(CANX, &transmit_message);
 
-  // Serial.println("trans done");
   delay(100);
-  /* waiting for receive completed */
   while ((test_flag_interrupt != SUCCESS) && (timeout != 0))
   {
     timeout--;
@@ -153,23 +173,38 @@ void loop()
 {
   digitalWrite(LED_PIN, HIGH);
   delay(200);
-  Serial.println("loop");
-  test_flag_interrupt = can_loopback_transmit(false);
+  test_flag_interrupt = can_loopback_transmit(useInterrupt);
 
-  if (SUCCESS == test_flag_interrupt)
+  if (useInterrupt)
   {
-    Serial.println("Success");
-    digitalWrite(LED_PIN, HIGH);
+
+    if (SUCCESS == test_flag_interrupt)
+    {
+      Serial.println("Success");
+      digitalWrite(LED_PIN, HIGH);
+    }
+    else
+    {
+      Serial.println("Fail");
+    }
   }
   else
   {
-    Serial.println("Fail");
 
     can_receive_message_struct receive_message;
 
     can_message_receive(CANX, CAN_FIFO0, &receive_message);
-    Serial.println(receive_message.rx_efid);
-    Serial.println(receive_message.rx_data[0], HEX);
+    Serial.print("rx 0x");
+    Serial.print(receive_message.rx_efid, HEX);
+    Serial.print(" ");
+    Serial.print(receive_message.rx_dlen);
+    Serial.print(" [");
+    for (int i = 0; i < receive_message.rx_dlen; i++)
+    {
+      Serial.print(" 0x");
+      Serial.print(receive_message.rx_data[i], HEX);
+    }
+    Serial.println(" ]");
     digitalWrite(LED_PIN, LOW);
   }
 
