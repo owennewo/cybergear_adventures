@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include "SimpleCAN.h"
 #include <SimpleFOC.h>
+#include "SimpleFOCDrivers.h"
+#include "drivers/infineon_6EDL7141/infineon_6EDL7141.h"
+#include "PinNamesVar.h"
 
 MagneticSensorSPI sensor = MagneticSensorSPI(AS5147_SPI, PA15);
-
+Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA,A_INHB,A_INHC, PB12, false, A_EN_DRV); 
 
 uint32_t randomData = 0; // <- 32-bit unsigned is easy to use as can data (4 bytes)
 
@@ -16,6 +19,7 @@ extern uint8_t can_sjw;
 
 // SPI_2 (mosi, miso, sclk)
 SPIClass SPI2_SENSOR(PORTC_12, PORTC_11, PORTC_10);//, PORTA_15);
+SPIClass SPI1_DRIVER(PORTB_15, PORTB_14, PORTB_13);
 
 int acceptance_code = 0b111111111111110;
 int acceptance_mask = 0b111111111111110;
@@ -34,10 +38,31 @@ void blinkMany(int times)
   delay(1000);
 }
 
+void outputHigh(int pin) {
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, HIGH);
+}
+
 
 void setup()
 {
-  GPIO_PIN_15;
+  
+outputHigh(PA1);
+outputHigh(PB1);
+outputHigh(PB2);
+outputHigh(PB3);
+// outputHigh(PB4);
+outputHigh(PB5);
+outputHigh(PB6);
+outputHigh(PB7);
+outputHigh(PB10);
+outputHigh(PC6);
+outputHigh(PC7);
+outputHigh(PC8);
+outputHigh(PC9);
+outputHigh(PC14);
+outputHigh(PC15);
+
   // RCU_APB1EN |= RCU_APB1EN_SPI2EN;
   rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV4); 
 // RCU_CFG0_ADCPSC(RCU_ADC_CKAPB2_DIV4)
@@ -64,7 +89,10 @@ void setup()
   gpio_init(GPIOC, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_11);
   Serial.begin(115200);
   delay(1000);
-  sensor.init(&SPI2_SENSOR);
+  // sensor.init(&SPI2_SENSOR);
+
+  driver.init(&SPI1_DRIVER);
+
   delay(10);
   // gpio_pin_remap_config(GPIO_SPI2_REMAP, ENABLE);
 
@@ -78,7 +106,7 @@ void setup()
   delay(10);
 }
 
-uint8_t *data = nullptr;
+uint8_t data[4];
 
 uint8_t *random_data()
 {
@@ -107,13 +135,18 @@ void loop()
     Serial.println("loop");
   }
 
-  sensor.update();
-  // display the angle and the angular velocity to the terminal
-  angle1 = sensor.getAngle();
-  // cast angle to int - to display in degrees
-  angle2 = (int16_t)(angle1 * 180 / M_PI);
+  int temp = driver.readTemperatureStatus().getTemperatureInCelsius();
 
-  data[0] = angle2;
+  // sensor.update();
+  // // display the angle and the angular velocity to the terminal
+  // angle1 = sensor.getAngle();
+  // // cast angle to int - to display in degrees
+  // angle2 = (int16_t)(angle1 * 180 / M_PI);
+
+data[0] = (uint8_t)(temp >> 8); // High byte
+data[1] = (uint8_t)temp;
+
+  // data[0] = temp;
   // data = random_data();
 
   uint32_t txIdentifier = acceptance_code;
@@ -121,7 +154,7 @@ void loop()
   delay(50);
   CanMsg txMsg = CanMsg(
       isExtendedFrame ? CanExtendedId(txIdentifier, isRtr) : CanStandardId(txIdentifier, isRtr),
-      1,
+      2,
       data);
   delay(50);
 
