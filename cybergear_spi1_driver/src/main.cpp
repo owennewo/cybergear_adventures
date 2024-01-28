@@ -9,7 +9,6 @@
  * various word lengths.
  *
  */
-#include "SoftwareSPI.h"
 #include "Wire.h"
 #include <Arduino.h>
 #include "SimpleCAN.h"
@@ -52,7 +51,7 @@ void setup()
 static uint8_t data[8];
 
 // uint8_t temp_reg = 0x3FFF; // TEMP STATUS
-uint8_t temp_reg = 0x2; // TEMP STATUS
+uint8_t temp_reg = 0x1; // TEMP STATUS
 
 void loop()
 {
@@ -73,11 +72,11 @@ void loop()
   // data[6] = uint8_t(reg4 >> 8);
   // data[7] = uint8_t(reg4 & 0xFF);
 
-  temp_reg += 1;
-  if (temp_reg > 0x09)
-  {
-    temp_reg = 0x00;
-  }
+  // temp_reg += 1;
+  // if (temp_reg > 0x09)
+  // {
+  //   temp_reg = 0x00;
+  // }
 
   bool isRtr = false;
   CanMsg txMsg = CanMsg(

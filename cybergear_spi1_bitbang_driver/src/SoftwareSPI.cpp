@@ -16,6 +16,9 @@ SPIClass::SPIClass(void)
     _mosi = PinName_to_digital(_spi.pin_mosi);
     _sclk = PinName_to_digital(_spi.pin_sclk);
     _ssel = NC;
+
+    _clockidle = LOW;
+    _clockactive = HIGH;
     initialized = false;
 }
 
@@ -62,6 +65,9 @@ void SPIClass::begin()
     pinMode(_mosi, OUTPUT);
     pinMode(_miso, INPUT);
 
+    _clockidle = (spisettings.datamode == SPI_MODE0 || spisettings.datamode == SPI_MODE1) ? LOW : HIGH;
+    _clockactive = _clockidle == LOW ? HIGH : LOW;
+    digitalWrite(_sclk, _clockidle);
     initialized = true;
 }
 
@@ -73,11 +79,13 @@ void SPIClass::end()
 void SPIClass::beginTransaction(SPISettings settings)
 {
     digitalWrite(_ssel, LOW);
+    delayMicroseconds(1);
 }
 
 void SPIClass::endTransaction(void)
 {
     digitalWrite(_ssel, HIGH);
+    delayMicroseconds(1);
 }
 
 uint8_t SPIClass::transfer(uint8_t val8)
@@ -86,37 +94,48 @@ uint8_t SPIClass::transfer(uint8_t val8)
 
     for (int i = 0; i < 8; i++)
     {
-        digitalWrite(_mosi, bitRead(val8, 7 - i)); // MSB first
-        digitalWrite(_sclk, HIGH);
-        bitWrite(rec, 7 - i, digitalRead(_miso));
-        digitalWrite(_sclk, LOW);
+        uint8_t currentBit = spisettings.bitorder == MSBFIRST ? 7 - i : i;
+
+        if (spisettings.datamode == SPI_MODE0 || spisettings.datamode == SPI_MODE2)
+        {
+            digitalWrite(_sclk, _clockactive); // First edge
+            delayMicroseconds(1);
+            bitWrite(rec, currentBit, digitalRead(_miso));
+            digitalWrite(_sclk, _clockidle); // Second edge
+            delayMicroseconds(1);
+        }
+        else // SPI_MODE1 or SPI_MODE3
+        {
+            digitalWrite(_sclk, _clockidle); // First edge
+            delayMicroseconds(1);
+            bitWrite(rec, currentBit, digitalRead(_miso));
+            digitalWrite(_sclk, _clockactive); // Second edge
+            delayMicroseconds(1);
+        }
     }
+
+    digitalWrite(_sclk, _clockidle); // Ensure clock ends up in idle state (for mode 1 and 3)
 
     return rec;
 }
 
 uint16_t SPIClass::transfer16(uint16_t val16)
 {
-    uint16_t out_halfword;
     uint8_t trans_data0, trans_data1, rec_data0, rec_data1;
 
     trans_data0 = uint8_t(val16 & 0x00FF);
-    trans_data1 = uint8_t((val16 & 0xFF00) >> 8);
+    trans_data1 = uint8_t(val16 >> 8);
 
-    if (spisettings.bitorder == LSBFIRST)
+    rec_data0 = transfer(trans_data0);
+    rec_data1 = transfer(trans_data1);
+    if (spisettings.bitorder == MSBFIRST)
     {
-        rec_data0 = transfer(trans_data0);
-        rec_data1 = transfer(trans_data1);
-        out_halfword = uint16_t(rec_data0 || rec_data1 << 8);
+        return (uint16_t(rec_data0) << 8) | uint16_t(rec_data1);
     }
     else
     {
-        rec_data0 = transfer(trans_data1);
-        rec_data1 = transfer(trans_data0);
-        out_halfword = uint16_t(rec_data1 || rec_data0 << 8);
+        return (uint16_t(rec_data1) << 8) | uint16_t(rec_data0);
     }
-
-    return out_halfword;
 }
 
 void SPIClass::transfer(void *buf, size_t count)
@@ -138,28 +157,17 @@ void SPIClass::transfer(void *bufout, void *bufin, size_t count)
 void SPIClass::setBitOrder(BitOrder order)
 {
     spisettings.bitorder = order;
-    spi_begin(&_spi, spisettings.speed, spisettings.datamode, spisettings.bitorder);
 }
 
 void SPIClass::setDataMode(uint8_t mode)
 {
     spisettings.datamode = mode;
-    spi_begin(&_spi, spisettings.speed, spisettings.datamode, spisettings.bitorder);
 }
 
 void SPIClass::setClockDivider(uint32_t divider)
 {
-    if (divider == 0)
-    {
-        spisettings.speed = SPI_SPEED_DEFAULT;
-    }
-    else
-    {
-        /* Get clk freq of the SPI instance and compute it */
-        spisettings.speed = dev_spi_clock_source_frequency_get(&_spi) / divider;
-    }
-
-    spi_begin(&_spi, spisettings.speed, spisettings.datamode, spisettings.bitorder);
+    // TODO: Implement speed.  It'll probably be running at ~400mbs due to 1ms delays
+    spisettings.speed = F_CPU / divider;
 }
 
 void SPIClass::config(SPISettings settings)

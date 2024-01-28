@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "freertos.h": "c",
+        "pinnames.h": "c",
+        "peripheralpins.h": "c",
+        "gd32f30x_gpio.h": "c",
+        "gd32xxyy.h": "c"
+    }
+}

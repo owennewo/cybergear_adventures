@@ -82,6 +82,8 @@ private:
     pin_size_t _miso;
     pin_size_t _sclk;
     pin_size_t _ssel;
+    PinStatus _clockidle;
+    PinStatus _clockactive;
 };
 
 extern SPIClass SPI;
