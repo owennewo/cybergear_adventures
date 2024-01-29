@@ -15,79 +15,181 @@
 #include "drivers/infineon_6EDL7141/infineon_6EDL7141.h"
 #include "PinNamesVar.h"
 
-PinName SPI1_MOSI = PORTB_15;
-PinName SPI1_MISO = PORTB_14;
-PinName SPI1_SCK = PORTB_13;
-PinName SPI1_CS = PORTB_12;
+#define SPI1_MOSI PORTB_15
+#define SPI1_MISO PORTB_14
+#define SPI1_SCK PORTB_13
+#define SPI1_CS PORTB_12
 
-PinName SPI2_MOSI = PORTC_12;
-PinName SPI2_MISO = PORTC_11;
-PinName SPI2_SCK = PORTC_10;
-PinName SPI2_CS = PORTA_15;
+SPIClass spi(SPI1_MOSI, SPI1_MISO, SPI1_SCK, SPI1_CS); //<- We can set CS here as no other SPI on this bus
 
-// SPIClass spi(DIGITAL_TO_PINNAME(A_SPI1_MOSI), DIGITAL_TO_PINNAME(A_SPI1_MISO), DIGITAL_TO_PINNAME(A_SPI1_SCK), DIGITAL_TO_PINNAME(A_SPI1_CS));
-SPIClass spi(SPI1_MOSI, SPI1_MISO, SPI1_SCK, SPI1_CS);
-// SPIClass spi(SPI2_MOSI, SPI2_MISO, SPI2_SCK, SPI2_CS);
+SPISettings settings(1000000, MSBFIRST, SPI_MODE0);
 
-// Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, PB12, false, A_EN_DRV);
+Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, PB12, false, A_EN_DRV);
 
 void setup()
 {
-  pinMode(PB15, OUTPUT);
-  pinMode(PB14, INPUT);
-  pinMode(PB13, OUTPUT);
-  pinMode(PB12, OUTPUT);
-
-  pinMode(PC12, OUTPUT);
-  pinMode(PC11, INPUT);
-  pinMode(PC10, OUTPUT);
-  pinMode(PA15, OUTPUT);
 
   CAN.begin(1000000);
-  spi.begin();
-  // driver.init(&spi);
+  driver.init(&spi);
 }
 
 static uint8_t data[8];
 
-// uint8_t temp_reg = 0x3FFF; // TEMP STATUS
-uint8_t temp_reg = 0x1; // TEMP STATUS
-
-void loop()
+void sendMessage(uint32_t identifier, uint8_t *data, uint8_t length)
 {
-
-  spi.transfer(temp_reg);
-
-  data[0] = uint8_t(temp_reg);
-  spi.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  spi.transfer(temp_reg);
-  // spi.transfer(0x3f);
-  // spi.transfer(0xff);
-  data[1] = spi.transfer(0x0);
-  data[2] = spi.transfer(0x0);
-  spi.endTransaction();
-  // data[3] = uint8_t(reg2 & 0xFF);
-  // data[4] = uint8_t(reg3 >> 8);
-  // data[5] = uint8_t(reg3 & 0xFF);
-  // data[6] = uint8_t(reg4 >> 8);
-  // data[7] = uint8_t(reg4 & 0xFF);
-
-  // temp_reg += 1;
-  // if (temp_reg > 0x09)
-  // {
-  //   temp_reg = 0x00;
-  // }
-
-  bool isRtr = false;
   CanMsg txMsg = CanMsg(
-      CanExtendedId(0b111111111111110, isRtr),
-      3,
+      CanExtendedId(identifier, false),
+      length,
       data);
 
   CAN.write(txMsg);
+}
 
+void sendFaultStatus()
+{
+  FaultAndWarningStatus status = driver.readFaultAndWarningStatus();
+
+  data[0] = 0;
+  data[1] = status.isCurrentSenseOverCurrentPhaseA() ? 1 : 0;
+  data[2] = status.isCurrentSenseOverCurrentPhaseB() ? 1 : 0;
+  data[3] = status.isCurrentSenseOverCurrentPhaseC() ? 1 : 0;
+  data[4] = status.isChargePump() ? 1 : 0;
+  data[5] = status.isDVDDOverCurrent() ? 1 : 0;
+  data[6] = status.isDVDDUnderVoltage() ? 1 : 0;
+
+  sendMessage(0x00, data, 7);
+  data[0] = 1;
+  data[1] = status.isBuckOverCurrentProtection() ? 1 : 0;
+  data[2] = status.isOverTemperatureShutdown() ? 1 : 0;
+  data[3] = status.isOverTemperatureWarning() ? 1 : 0;
+  data[4] = status.isLockedRotor() ? 1 : 0;
+  data[5] = status.isWatchdog() ? 1 : 0;
+  data[6] = status.isOTPMemory() ? 1 : 0;
+  sendMessage(0x00, data, 7);
+}
+
+void sendTemperatureStatus()
+{
+  data[0] = driver.readTemperatureStatus().getTemperatureInCelsius();
+  sendMessage(0x01, data, 1);
+}
+
+void sendPowerSupplyStatus()
+{
+  PowerSupplyStatus status = driver.readPowerSupplyStatus();
+
+  data[0] = status.isChargePumpLowSideUnderVoltage() ? 1 : 0;
+  data[1] = status.isChargePumpHighSideUnderVoltage() ? 1 : 0;
+  data[2] = status.isDVDDUnderVoltage() ? 1 : 0;
+  data[3] = status.isDVDDOverVoltage() ? 1 : 0;
+  data[4] = status.isVDDBUnderVoltage() ? 1 : 0;
+  data[5] = status.isVDDBOverVoltage() ? 1 : 0;
+  data[6] = status.getPVDDVoltage();
+
+  sendMessage(0x02, data, 7);
+}
+
+void sendFunctionalStatus()
+{
+  FunctionalStatus status = driver.readFunctionalStatus();
+
+  data[0] = status.getHallStatePhaseA() ? 1 : 0;
+  data[1] = status.getHallStatePhaseB() ? 1 : 0;
+  data[2] = status.getHallStatePhaseC() ? 1 : 0;
+  data[3] = status.isHallPolarityEqual() ? 1 : 0;
+  data[4] = status.isDVDDSetPoint5V() ? 1 : 0;
+  data[5] = status.getCurrentSenseGain();
+
+  sendMessage(0x03, data, 6);
+}
+
+void sendOTPStatus()
+{
+  OTPStatus status = driver.readOTPStatus();
+
+  data[0] = status.isOneTimeProgramUsed() ? 1 : 0;
+  data[1] = status.isOneTimeProgramPassed() ? 1 : 0;
+  data[2] = status.isOneTimeProgramBlocked() ? 1 : 0;
+  data[3] = status.isOneTimeProgramFailed() ? 1 : 0;
+
+  sendMessage(0x04, data, 4);
+}
+
+void sendADCStatus()
+{
+  ADCStatus status = driver.readADCStatus();
+
+  data[0] = status.isReady() ? 1 : 0;
+  data[1] = status.getValue();
+
+  sendMessage(0x05, data, 2);
+}
+
+void sendChargePumpsStatus()
+{
+  ChargePumpsStatus status = driver.readChargePumpsStatus();
+
+  data[0] = status.getChargePumpHighSideVoltage();
+  data[1] = status.getChargePumpLowSideVoltage();
+
+  sendMessage(0x06, data, 2);
+}
+
+void sendDeviceID()
+{
+  DeviceID status = driver.readDeviceID();
+
+  data[0] = status.DEV_ID;
+
+  sendMessage(0x07, data, 1);
+}
+
+void sendDeadTimeConfiguration()
+{
+  DeadTimeConfiguration configuration = driver.readDeadTimeConfiguration();
+
+  data[0] = configuration.DT_RISE;
+  data[1] = configuration.DT_FALL;
+
+  sendMessage(0x1B, data, 2);
+}
+
+void updateDeadTimeConfiguration()
+{
+  DeadTimeConfiguration configuration = driver.readDeadTimeConfiguration();
+
+  configuration.setDeadTimeRise(360);
+  configuration.setDeadTimeFall(440);
+
+  driver.writeDeadTimeConfiguration(configuration);
+}
+
+void loop()
+{
+  sendFaultStatus();
+  delay(900);
+  sendTemperatureStatus();
+  delay(900);
+  sendPowerSupplyStatus();
+  delay(900);
+  sendFunctionalStatus();
+  delay(900);
+  sendOTPStatus();
+  delay(900);
+  sendADCStatus();
+  delay(900);
+  sendChargePumpsStatus();
+  delay(900);
+  sendDeviceID();
   delay(900);
 
-  // while (true)
-  //   ;
+  sendDeadTimeConfiguration();
+  delay(900);
+  updateDeadTimeConfiguration();
+  delay(900);
+  sendDeadTimeConfiguration();
+  delay(900);
+
+  while (true)
+    ;
 }
