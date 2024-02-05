@@ -2,35 +2,33 @@
  * CYBERGEAR SPI1 BITBANG
  * ----------------------
  * SPI1 is connected to a single device, the Infineon 6EDL7141
- * This device has a 24bit word length, and is tricky to use with a gd32 which
- * is more comfortable with 8bit and 16bit words.
+ * This device has a 24bit word length with LOTS of status and configuration registers!!
  *
- * This example uses the SoftwareSPI library to bitbang the SPI1 interface which can handle
- * various word lengths.
+ * This prints out all the status registers.  It has a commented out example of reading/setting a config register.
  *
  */
 #include "Wire.h"
 #include <Arduino.h>
 #include "SimpleCAN.h"
+#include "SimpleFOC.h"
 #include "drivers/infineon_6EDL7141/infineon_6EDL7141.h"
 #include "PinNamesVar.h"
 
-#define SPI1_MOSI PORTB_15
-#define SPI1_MISO PORTB_14
-#define SPI1_SCK PORTB_13
-#define SPI1_CS PORTB_12
+SPIClass spi1(P_SPI1_MOSI, P_SPI1_MISO, P_SPI1_SCK, P_SPI1_CS); //<- We can set CS here as no other SPI on this bus
 
-SPIClass spi(SPI1_MOSI, SPI1_MISO, SPI1_SCK, SPI1_CS); //<- We can set CS here as no other SPI on this bus
-
-SPISettings settings(1000000, MSBFIRST, SPI_MODE0);
+SPISettings settings1(1000000, MSBFIRST, SPI_MODE0);
 
 Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, PB12, false, A_EN_DRV);
 
 void setup()
 {
-
+  pinMode(A_EN_DRV, OUTPUT);
+  digitalWrite(A_EN_DRV, LOW);
+  pinMode(A_NFAULT, INPUT);
   CAN.begin(1000000);
-  driver.init(&spi);
+  driver.init(&spi1);
+  pinMode(P_SPI2_CS, OUTPUT);
+  digitalWrite(P_SPI2_CS, HIGH);
 }
 
 static uint8_t data[8];
@@ -84,9 +82,10 @@ void sendPowerSupplyStatus()
   data[3] = status.isDVDDOverVoltage() ? 1 : 0;
   data[4] = status.isVDDBUnderVoltage() ? 1 : 0;
   data[5] = status.isVDDBOverVoltage() ? 1 : 0;
-  data[6] = status.getPVDDVoltage();
+  data[6] = status.PVDD_VAL;
+  data[7] = uint8_t(status.getPVDDVoltage());
 
-  sendMessage(0x02, data, 7);
+  sendMessage(0x02, data, 8);
 }
 
 void sendFunctionalStatus()
@@ -164,8 +163,39 @@ void updateDeadTimeConfiguration()
   driver.writeDeadTimeConfiguration(configuration);
 }
 
+void sendFAULTPin()
+{
+  data[0] = digitalRead(A_NFAULT); // <- 0 is a fault, 1 is no fault
+  sendMessage(0xFF, data, 1);
+}
+
+void sendPowerSupplyConfig()
+{
+  PowerSupplyConfiguration configuration = driver.readPowerSupplyConfiguration();
+
+  data[0] = configuration.PVCC_SETPT;
+  data[1] = configuration.CS_REF_CFG;
+  data[2] = configuration.DVDD_OCP_CFG;
+  data[3] = configuration.DVDD_SFTSTRT;
+  data[4] = configuration.DVDD_SETPT;
+  data[5] = configuration.BK_FREQ;
+  data[6] = configuration.DVDD_TON_DELAY;
+  data[7] = configuration.CP_PRECHARGE_EN;
+
+  sendMessage(0x11, data, 8);
+
+  // delay(500);
+  // configuration.setGateDrivingVoltage(GateDrivingVoltage::_7V);
+  // configuration.setDVDDSoftStart(1600);
+  // driver.writePowerSupplyConfiguration(configuration);
+
+  // delay(500);
+  // driver.clearFaults(true, true);
+}
+
 void loop()
 {
+  delay(900);
   sendFaultStatus();
   delay(900);
   sendTemperatureStatus();
@@ -182,14 +212,14 @@ void loop()
   delay(900);
   sendDeviceID();
   delay(900);
-
-  sendDeadTimeConfiguration();
-  delay(900);
-  updateDeadTimeConfiguration();
+  sendPowerSupplyConfig();
   delay(900);
   sendDeadTimeConfiguration();
   delay(900);
-
-  while (true)
-    ;
+  // updateDeadTimeConfiguration();
+  // delay(900);
+  // sendDeadTimeConfiguration();
+  // delay(900);
+  sendFAULTPin();
+  delay(900);
 }
