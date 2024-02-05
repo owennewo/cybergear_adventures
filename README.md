@@ -1,5 +1,5 @@
 # cybergear_adventures
-A set of arduino projects where I explore cybergear actuator using opensource codes
+A set of arduino projects where I explore cybergear actuator using opensource code.
 
  * bluepill_* projects use a similar gd32 chip which is easier to debug.  You can probably ignore these.
  * cybergear_blinky_serial - it blinks.  It won't print serial unless you bravely solder rx/tx directly to pins 16 and 17

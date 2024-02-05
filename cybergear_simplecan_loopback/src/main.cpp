@@ -1,21 +1,11 @@
+/**
+ * LOOPBACK example, sends some data over loopback interface.  So will bounce stright back to can rx.
+ * It isn't 'silent' so you'll also see it on canbus
+ */
+
 #include <Arduino.h>
 #include "SimpleCAN.h"
 
-uint32_t randomData = 0; // <- 32-bit unsigned is easy to use as can data (4 bytes)
-
-uint32_t txState = 11;
-extern uint16_t can_prescaler;
-extern int can_bitrate;
-extern uint8_t can_tseg1;
-extern uint8_t can_tseg2;
-extern uint8_t can_sjw;
-
-
-int acceptance_code = 0b111111111111110;
-int acceptance_mask = 0b111111111111110;
-
-// int acceptance_code = 0x321;
-// int acceptance_mask = 0x321;
 bool isExtendedFrame = true;
 
 void blinkMany(int times)
@@ -41,8 +31,6 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
   CAN.enableInternalLoopback();
-  // CanFilter filter = CanFilter(isExtendedFrame? MASK_EXTENDED: MASK_STANDARD, acceptance_code, acceptance_mask, FILTER_ANY_FRAME);
-  // CAN.filter(filter);
   CAN.begin(1000000);
   delay(10);
 }
@@ -75,12 +63,12 @@ void loop()
 
   data = random_data();
 
-  uint32_t txIdentifier = acceptance_code;
+  uint32_t txIdentifier = 0x3ff;
   bool isRtr = false;
   delay(50);
   CanMsg txMsg = CanMsg(
       isExtendedFrame ? CanExtendedId(txIdentifier, isRtr) : CanStandardId(txIdentifier, isRtr),
-      0,
+      4,
       data);
   delay(50);
 
@@ -109,5 +97,4 @@ void loop()
 
   blinkMany(2);
   delay(800);
-  
 }
