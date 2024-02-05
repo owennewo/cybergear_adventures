@@ -1,5 +1,5 @@
 /**
- * CYBERGEAR SPI1 BITBANG
+ * CYBERGEAR SPI1 DRIVER
  * ----------------------
  * SPI1 is connected to a single device, the Infineon 6EDL7141
  * This device has a 24bit word length with LOTS of status and configuration registers!!
