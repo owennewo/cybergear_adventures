@@ -10,5 +10,3 @@ This board is interesting because:
  - CAN RX/TX pins accessible (but no CAN transceiver) - loopback testing possible or add external can transceiver
 
 So the idea is get a bunch of stuff working on this bluepill and then switch to cybergear
-
-Note: I'm using swd/stlink to upload (not usb)

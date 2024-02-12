@@ -7,3 +7,4 @@ This project has a couple of problems:
 
  I suspect with more work it could be made to work, but I'm not contunuining on the stm32duino route.
 
+Note: I'm using swd/stlink to upload (not usb)

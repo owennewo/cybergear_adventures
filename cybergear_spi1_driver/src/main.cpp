@@ -18,7 +18,7 @@ SPIClass spi1(P_SPI1_MOSI, P_SPI1_MISO, P_SPI1_SCK, P_SPI1_CS); //<- We can set 
 
 SPISettings settings1(1000000, MSBFIRST, SPI_MODE0);
 
-Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, PB12, false, A_EN_DRV);
+Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, A_SPI1_CS, false, A_EN_DRV);
 
 void setup()
 {
@@ -184,6 +184,34 @@ void sendPowerSupplyConfig()
 
   sendMessage(0x11, data, 8);
 
+  TIMER_CTL0(TIMER0) = 0x000000D1; // <- 0xc1?
+  TIMER_CTL1(TIMER0) = 0x00000020;
+  TIMER_SMCFG(TIMER0) = 0x00000080;
+  TIMER_DMAINTEN(TIMER0) = 0x00000001;
+  TIMER_INTF(TIMER0) = 0x0000001E;
+  // TIMER_SWEVG(TIMER0) = 0x0;
+  TIMER_CHCTL0(TIMER0) = 0x00006868;
+  TIMER_CHCTL1(TIMER0) = 0x00000068;
+  TIMER_CHCTL2(TIMER0) = 0x00000BBB;
+  TIMER_CNT(TIMER0) = 0x000012E7;
+  TIMER_PSC(TIMER0) = 0x0;
+  TIMER_CAR(TIMER0) = 0x00001388;
+
+  // ?? 0x30 is out of order
+  TIMER_CREP(TIMER0) = 0x00000001;
+  TIMER_CH0CV(TIMER0) = 0x000009C4;
+  TIMER_CH1CV(TIMER0) = 0x000009C4;
+  TIMER_CH2CV(TIMER0) = 0x000009C4;
+  TIMER_CH3CV(TIMER0) = 0x0;
+  // 0x44 is out of orders
+  TIMER_CCHP(TIMER0) = 0x00008000;
+  TIMER_DMACFG(TIMER0) = 0x0;
+  TIMER_DMATB(TIMER0) = 0x000000C1;
+  // missing
+  // TIMER_IRMP(TIMER0) = 0x0;
+  // missing
+  // TIMER_CFG(TIMER0) = 0x0;
+
   // delay(500);
   // configuration.setGateDrivingVoltage(GateDrivingVoltage::_7V);
   // configuration.setDVDDSoftStart(1600);
@@ -195,31 +223,31 @@ void sendPowerSupplyConfig()
 
 void loop()
 {
-  delay(900);
-  sendFaultStatus();
-  delay(900);
-  sendTemperatureStatus();
-  delay(900);
+  // delay(900);
+  // sendFaultStatus();
+  // delay(900);
+  // sendTemperatureStatus();
+  // delay(900);
   sendPowerSupplyStatus();
   delay(900);
-  sendFunctionalStatus();
-  delay(900);
-  sendOTPStatus();
-  delay(900);
-  sendADCStatus();
-  delay(900);
-  sendChargePumpsStatus();
-  delay(900);
-  sendDeviceID();
-  delay(900);
-  sendPowerSupplyConfig();
-  delay(900);
-  sendDeadTimeConfiguration();
-  delay(900);
-  // updateDeadTimeConfiguration();
+  // sendFunctionalStatus();
+  // delay(900);
+  // sendOTPStatus();
+  // delay(900);
+  // sendADCStatus();
+  // delay(900);
+  // sendChargePumpsStatus();
+  // delay(900);
+  // sendDeviceID();
+  // delay(900);
+  // sendPowerSupplyConfig();
   // delay(900);
   // sendDeadTimeConfiguration();
   // delay(900);
-  sendFAULTPin();
-  delay(900);
+  // // updateDeadTimeConfiguration();
+  // // delay(900);
+  // // sendDeadTimeConfiguration();
+  // // delay(900);
+  // sendFAULTPin();
+  // delay(900);
 }
