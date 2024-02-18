@@ -16,8 +16,6 @@ SPIClass spi2(P_SPI2_MOSI, P_SPI2_MISO, P_SPI2_SCK); //, P_SPI2_CS);
 
 MagneticSensorSPI sensor(AS5147_SPI, A_SPI2_CS);
 
-SPISettings settings(10000000, MSBFIRST, SPI_MODE1);
-
 void setHigh(uint32_t gpio_periph, uint32_t pin)
 {
   gpio_init(gpio_periph, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, pin); // LED PA5
@@ -42,7 +40,6 @@ void setup()
 
   rcu_periph_clock_enable(RCU_AF);
   gpio_pin_remap_config(GPIO_SWJ_SWDPENABLE_REMAP, ENABLE); // we need PA15 to be released from JTAG otherwise it is pulled high
-                                                            // GPIO_SWJ_SWDPENABLE_REMAP
   CAN.begin(1000000);
   sensor.init(&spi2);
 }
