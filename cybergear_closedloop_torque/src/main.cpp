@@ -13,18 +13,21 @@
 #include "PinNamesVar.h"
 #include "drivers/hardware_specific/gd32/gd32_mcu.h"
 #include "SimpleCAN.h"
+#include "CANCommander.h"
 
 SPIClass spi1(P_SPI1_MOSI, P_SPI1_MISO, P_SPI1_SCK, P_SPI1_CS); //<- We can set CS here as no other SPI on this bus
-
-SPIClass spi2(P_SPI2_MOSI, P_SPI2_MISO, P_SPI2_SCK); //, P_SPI2_CS);
+SPIClass spi2(P_SPI2_MOSI, P_SPI2_MISO, P_SPI2_SCK);            //, P_SPI2_CS);
 MagneticSensorSPI sensor(AS5147_SPI, A_SPI2_CS);
 
 Infineon6EDL7141Driver3PWM driver = Infineon6EDL7141Driver3PWM(A_INHA, A_INHB, A_INHC, A_SPI1_CS, false, A_EN_DRV);
 BLDCMotor motor = BLDCMotor(14);
 
+CANCommander commander = CANCommander();
+
 uint32_t pwmPeriod = 0;
 
 uint32_t start_time = 0;
+float target_voltage = -0.95f;
 
 void setup()
 {
@@ -32,6 +35,8 @@ void setup()
   CAN.begin(1000000);
   delay(200);
   digitalWrite(LED_BUILTIN, HIGH); // Note: LED is backwards.  Pull LOW for on.
+
+  commander.linkMotor(0x00, &motor);
 
   sensor.init(&spi2);
 
@@ -47,34 +52,24 @@ void setup()
   motor.controller = MotionControlType::torque;
 
   motor.init();
-  motor.initFOC();
-
+  // motor.initFOC();
   start_time = millis();
   digitalWrite(LED_BUILTIN, LOW);
   delay(100);
   digitalWrite(LED_BUILTIN, HIGH);
-
-  pwmPeriod = ((GD32DriverParams *)driver.params)->period;
+  motor.move(0);
+  // pwmPeriod = ((GD32DriverParams *)driver.params)->period;
 }
 
 uint32_t watchA = 0;
 uint32_t watchB = 0;
 uint32_t watchC = 0;
 
-float target_voltage = -0.95f;
 float shaft_velocity = 0.0f;
 
 void loop()
 {
-
-  // sensor.update();
-  // motorAngle = sensor.getAngle();
-
-  // watch vars + pwmPeriod be viewed in stm32cubemonitor in realtime
-  watchA = driver.dc_a * pwmPeriod;
-  watchB = driver.dc_b * pwmPeriod;
-  watchC = driver.dc_c * pwmPeriod;
+  commander.run();
   motor.loopFOC();
-  shaft_velocity = motor.shaft_velocity;
-  motor.move(target_voltage);
+  motor.move();
 }
