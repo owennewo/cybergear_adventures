@@ -13,7 +13,9 @@
 #include "PinNamesVar.h"
 #include "drivers/hardware_specific/gd32/gd32_mcu.h"
 #include "SimpleCAN.h"
-#include "CANCommander.h"
+#include "can/CANCommander.h"
+#include "can/modules/MetricsModule.h"
+#include "can/modules/BaseModule.h"
 
 SPIClass spi1(P_SPI1_MOSI, P_SPI1_MISO, P_SPI1_SCK, P_SPI1_CS); //<- We can set CS here as no other SPI on this bus
 SPIClass spi2(P_SPI2_MOSI, P_SPI2_MISO, P_SPI2_SCK);            //, P_SPI2_CS);
@@ -37,6 +39,7 @@ void setup()
   digitalWrite(LED_BUILTIN, HIGH); // Note: LED is backwards.  Pull LOW for on.
 
   commander.linkMotor(0x00, &motor);
+  commander.monitor(0, BaseModule::MODULES::MODULE_METRICS, MetricsModule::FIELDS::M_METRICS_VELOCITY_ANGLE, 500);
 
   sensor.init(&spi2);
 
