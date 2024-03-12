@@ -34,12 +34,15 @@ void PIDLPFModule::writeRequest(uint8_t fieldId, CanMsg *msg)
     {
     case P:
         _pid->P = asFloat(msg->data);
+        _pid->reset();
         break;
     case I:
         _pid->I = asFloat(msg->data);
+        _pid->reset();
         break;
     case D:
         _pid->D = asFloat(msg->data);
+        _pid->reset();
         break;
     case LIMIT:
         _pid->limit = asFloat(msg->data);

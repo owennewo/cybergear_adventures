@@ -26,7 +26,7 @@ void CANCommander::linkMotor(uint8_t deviceId, BLDCMotor *motor)
     _modules[BaseModule::MODULE_PIDLPF_CURRENT_Q] = new PIDLPFModule(deviceId, BaseModule::MODULE_PIDLPF_CURRENT_Q, &motor->PID_current_q, &motor->LPF_current_q);
     _modules[BaseModule::MODULE_PIDLPF_CURRENT_D] = new PIDLPFModule(deviceId, BaseModule::MODULE_PIDLPF_CURRENT_D, &motor->PID_current_d, &motor->LPF_current_d);
     _modules[BaseModule::MODULE_PIDLPF_VELOCITY] = new PIDLPFModule(deviceId, BaseModule::MODULE_PIDLPF_VELOCITY, &motor->PID_velocity, &motor->LPF_velocity);
-    _modules[BaseModule::MODULE_PIDLPF_ANGLE] = new PIDLPFModule(deviceId, BaseModule::MODULE_PIDLPF_ANGLE, &motor->PID_velocity, &motor->LPF_angle);
+    _modules[BaseModule::MODULE_PIDLPF_ANGLE] = new PIDLPFModule(deviceId, BaseModule::MODULE_PIDLPF_ANGLE, &motor->P_angle, &motor->LPF_angle);
     _modules[BaseModule::MODULE_METRICS] = new MetricsModule(deviceId, BaseModule::MODULE_METRICS, motor);
     _monitorModule = new MonitorModule(deviceId, BaseModule::MODULE_MONITOR, motor);
     _modules[BaseModule::MODULE_MONITOR] = _monitorModule;

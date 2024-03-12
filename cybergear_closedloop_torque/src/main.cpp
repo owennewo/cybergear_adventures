@@ -39,7 +39,7 @@ void setup()
   digitalWrite(LED_BUILTIN, HIGH); // Note: LED is backwards.  Pull LOW for on.
 
   commander.linkMotor(0x00, &motor);
-  commander.monitor(0, BaseModule::MODULES::MODULE_METRICS, MetricsModule::FIELDS::M_METRICS_VELOCITY_ANGLE, 500);
+  commander.monitor(0, BaseModule::MODULES::MODULE_METRICS, MetricsModule::FIELDS::M_METRICS_VELOCITY_ANGLE, 200);
 
   sensor.init(&spi2);
 
@@ -48,11 +48,15 @@ void setup()
   driver.voltage_limit = 4.0;       // 2V is conservative for openloop, going much higher might cause excess heat
   driver.init(&spi1);
 
+  motor.foc_modulation = FOCModulationType::SpaceVectorPWM;
+  motor.PID_velocity.P = 0.2;
+  motor.PID_velocity.I = 5;
+  motor.LPF_velocity.Tf = 0.01;
   motor.linkDriver(&driver);
   motor.linkSensor(&sensor);
   motor.voltage_sensor_align = 4.0;
   motor.voltage_limit = driver.voltage_limit / 2;
-  motor.controller = MotionControlType::torque;
+  motor.controller = MotionControlType::velocity;
 
   motor.init();
   // motor.initFOC();
